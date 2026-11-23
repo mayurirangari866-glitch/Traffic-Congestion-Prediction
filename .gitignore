@@ -1,0 +1,12 @@
+.env
+.env.*
+!.env.example
+__pycache__/
+*.pyc
+.venv/
+venv/
+.idea/
+*.log
+outputs/live_traffic*.csv
+outputs/live_weather*.csv
+outputs/combined_live_data.csv
