@@ -4,10 +4,6 @@
 
 A machine learning-based traffic prediction system that analyzes historical traffic patterns and estimates traffic volume using time-related and environmental features. The application also provides live traffic and weather monitoring for selected locations in Nagpur.
 
-## 🌐 Live Website
-
-[Click here to open the live project](https://smart-traffic-prediction-2026.streamlit.app/)
-
 ---
 
 ## 1. Introduction
