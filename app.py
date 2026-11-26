@@ -19,7 +19,25 @@ PROJECT_FOLDER = Path(__file__).resolve().parent
 
 load_dotenv(PROJECT_FOLDER / ".env")
 
-TOMTOM_API_KEY = os.getenv("TOMTOM_API_KEY")
+# Read the API key from Streamlit Cloud Secrets first, then local .env.
+try:
+    TOMTOM_API_KEY = st.secrets.get("TOMTOM_API_KEY", "")
+except Exception:
+    TOMTOM_API_KEY = ""
+
+if not TOMTOM_API_KEY:
+    TOMTOM_API_KEY = os.getenv("TOMTOM_API_KEY", "")
+
+TOMTOM_API_KEY = TOMTOM_API_KEY.strip() if TOMTOM_API_KEY else ""
+
+# Reject common placeholder values so they are never sent to TomTom.
+if TOMTOM_API_KEY.lower() in {
+    "your_actual_tomtom_api_key",
+    "your_tomtom_api_key_here",
+    "your_api_key",
+    ""
+}:
+    TOMTOM_API_KEY = ""
 
 MODEL_PATH = PROJECT_FOLDER / "models" / "traffic_volume_model.pkl"
 DATA_PATH = PROJECT_FOLDER / "outputs" / "cleaned_traffic.csv"
@@ -39,7 +57,7 @@ def collect_live_api_data():
     """Collect traffic from two Nagpur points and weather data."""
 
     if not TOMTOM_API_KEY:
-        st.error("TomTom API key not found. Check your .env file.")
+        st.error("TomTom API key is missing or still set to a placeholder. Add your real key in Streamlit Cloud: App settings → Secrets, under TOMTOM_API_KEY.")
         return
 
     output_folder = PROJECT_FOLDER / "outputs"
@@ -115,10 +133,27 @@ def collect_live_api_data():
                 f"Traffic updated: {location['location_name']}"
             )
 
-        except Exception as error:
+        except requests.HTTPError as error:
+            # Do not print the request URL: it contains the API key.
+            status = error.response.status_code if error.response is not None else "unknown"
+            if status == 401 or status == 403:
+                st.warning(
+                    f"TomTom rejected the API key for {location['location_name']} "
+                    f"(HTTP {status}). Check the TOMTOM_API_KEY value in Streamlit Cloud Secrets."
+                )
+            else:
+                st.warning(
+                    f"TomTom traffic request failed for {location['location_name']} "
+                    f"(HTTP {status}). Please try again later."
+                )
+        except requests.RequestException:
             st.warning(
-                f"Traffic update failed for "
-                f"{location['location_name']}: {error}"
+                f"Could not connect to TomTom for {location['location_name']}. "
+                "Please check the network connection and try again."
+            )
+        except (KeyError, ValueError):
+            st.warning(
+                f"TomTom returned an unexpected response for {location['location_name']}."
             )
 
     # Collect weather once for the monitoring area
@@ -1118,3 +1153,4 @@ st.caption(
     "M.Tech Project | Traffic Congestion Prediction | "
     "Machine Learning and Deep Learning"
 )
+
